@@ -1,0 +1,157 @@
+"""
+S2S Encoder model.  (c) 2021 Georgia Tech
+
+Copyright 2021, Georgia Institute of Technology (Georgia Tech)
+Atlanta, Georgia 30332
+All Rights Reserved
+
+Template code for CS 7643 Deep Learning
+
+Georgia Tech asserts copyright ownership of this template and all derivative
+works, including solutions to the projects assigned in this course. Students
+and other users of this template code are advised not to share it with others
+or to make it available on publicly viewable websites including repositories
+such as Github, Bitbucket, and Gitlab.  This copyright statement should
+not be removed or edited.
+
+Sharing solutions with current or future students of CS 7643 Deep Learning is
+prohibited and subject to being investigated as a GT honor code violation.
+
+-----do not edit anything above this line---
+"""
+
+import random
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+
+class Encoder(nn.Module):
+    """ The Encoder module of the Seq2Seq model 
+        You will need to complete the init function and the forward function.
+    """
+
+    def __init__(self, input_size, emb_size, encoder_hidden_size, decoder_hidden_size, dropout=0.2, model_type="RNN"):
+        super(Encoder, self).__init__()
+
+        self.input_size = input_size
+        self.emb_size = emb_size
+        self.encoder_hidden_size = encoder_hidden_size
+        self.decoder_hidden_size = decoder_hidden_size
+        self.model_type = model_type
+        #############################################################################
+        # TODO:                                                                     #
+        #    Initialize the following layers of the encoder in this order!:         #
+        #       1) An embedding layer                                               #
+        #       2) A recurrent layer based on the "model_type" argument.            #
+        #          Supported types (strings): "RNN", "LSTM". Instantiate the        #
+        #          appropriate layer for the specified model_type.                  #
+        #       3) Linear layers with ReLU activation in between to get the         #
+        #          hidden states of the Encoder(namely, Linear - ReLU - Linear).    #
+        #          The size of the output of the first linear layer is the same as  #
+        #          its input size.                                                  #
+        #          HINT: the size of the output of the second linear layer must     #
+        #          satisfy certain constraint relevant to the decoder.              #
+        #       4) A dropout layer                                                  #
+        #                                                                           #
+        # NOTE: Use nn.RNN and nn.LSTM instead of the naive implementation          #
+        #############################################################################
+
+        ## 1. Embedding layer
+        self.embeddingL = nn.Embedding(input_size, emb_size)
+        # Converts token indices into dense embedding vectors
+        # input: (batch_size, seq_len)
+        # output: (batch_size, seq_len, emb_size)
+
+        ## 2. Recurrent layer (RNN or LSTM)
+        # For a single-layer RNN/LSTM, set dropout to 0 to avoid PyTorch warnings
+        rnn_dropout = 0.0 
+        if model_type == "RNN":
+            self.rnn = nn.RNN(
+                emb_size, encoder_hidden_size, batch_first=True, dropout=rnn_dropout
+            )
+        elif model_type == "LSTM":
+            self.rnn = nn.LSTM(
+                emb_size, encoder_hidden_size, batch_first=True, dropout=rnn_dropout
+            )
+        
+        else: raise ValueError(" Choose 'RNN' or 'LSTM'.")
+        self.recurrentL = self.rnn
+
+
+        ## 3. Linear layers with ReLU activation in between to get the hidden states of the Encoder
+        # Map from encoder_hidden_size -> encoder_hidden_size -> decoder_hidden_size
+        self.fc1 = nn.Linear(encoder_hidden_size, encoder_hidden_size)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(encoder_hidden_size, decoder_hidden_size)
+        ## 4. Dropout layer
+        self.dropoutL = nn.Dropout(dropout)   # Dropout randomly disables neurons during training to reduce overfitting
+
+
+
+
+
+        #############################################################################
+        #                              END OF YOUR CODE                             #
+        #############################################################################
+
+    def forward(self, input):
+        """ The forward pass of the encoder
+            Args:
+                input (tensor): the encoded sequences of shape (batch_size, seq_len)
+
+            Returns:
+                output (tensor): the output of the Encoder;
+                hidden (tensor): the state coming out of the last hidden unit
+        """
+
+        #############################################################################
+        # TODO: Implement the forward pass of the encoder.                          #
+        #       Apply the dropout to the embedding layer before you apply the       #
+        #       recurrent layer                                                     #
+        #                                                                           #
+        #       Apply tanh activation to the hidden tensor before returning it      #
+        #                                                                           #
+        #       Do not apply any tanh (linear layers/Relu) for the cell state when  #
+        #       model_type is LSTM before returning it.                             #
+        #                                                                           #
+        #       If model_type is LSTM, the hidden variable returns a tuple          #
+        #       containing both the hidden state and the cell state of the LSTM.    #
+        #############################################################################
+
+        ### output, hidden = None, None     #remove this line when you start implementing your code
+        ## 1. Apply dropout to the embedding layer
+        embedded = self.embeddingL(input)  # Convert token IDs to embedding vectors
+
+        # shape: (batch_size, seq_len, emb_size)
+        embedded = self.dropoutL(embedded)  # Apply dropout regularization to the embedding output
+
+        ## Pass through the recurrent layer
+        output, hidden = self.rnn(embedded) 
+
+        # Handle hidden state depending on model type
+        if self.model_type == "LSTM":
+            h, c = hidden
+
+            h = self.fc2(self.relu(self.fc1(h)))
+            h = torch.tanh(h)
+
+            hidden = (h, c)
+
+        else:
+
+            h = self.fc2(self.relu(self.fc1(hidden))) 
+            h = torch.tanh(h)
+            hidden = h
+
+           
+
+        
+
+
+        #############################################################################
+        #                              END OF YOUR CODE                             #
+        #############################################################################
+
+        return output, hidden   # (batch_size, seq_len, encoder_hidden_size)

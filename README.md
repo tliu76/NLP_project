@@ -1,6 +1,6 @@
 # Machine Translation with Seq2Seq and Transformers
 
-A PyTorch implementation of machine translation models for English–German translation, built as part of CS 7643 Deep Learning (OMSCS, Georgia Tech).
+A PyTorch implementation of machine translation models for English–German translation, built as part of CS 7643 Deep Learning.
 
 ## Overview
 
